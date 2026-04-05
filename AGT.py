@@ -2,6 +2,8 @@
 import discord
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from discord.ext import commands
 from discord import app_commands
 
@@ -739,4 +741,4 @@ async def list_teams(interaction: discord.Interaction):
     await interaction.response.send_message("I finished.", ephemeral=True)
     await interaction.channel.send(embed=embed)
 
-client.run('TOKEN') 
+client.run(os.getenv('TOKEN')) 
