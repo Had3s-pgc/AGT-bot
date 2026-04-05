@@ -739,4 +739,4 @@ async def list_teams(interaction: discord.Interaction):
     await interaction.response.send_message("I finished.", ephemeral=True)
     await interaction.channel.send(embed=embed)
 
-client.run('MTQ4NDI4MDc3MDA4NzYxNjU2Mw.G_C-ES.xOYr3lzmh4aGz6kGf5G_xwqqPEBb6ZqYXg7TSM') 
+client.run('TOKEN') 
