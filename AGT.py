@@ -238,8 +238,8 @@ async def info(interaction: discord.Interaction):
             "* Lists the current teams playing within the league.<<<\n"
             "\n"
             "-# PGC Season Management System - Created by Had3s"), color=0x15D466)
-    await interaction.response.send_message(embed=embed, ephemeral=True) # When sending the information of the slash commands in a server change the "✅ Done" to embed=embed and remove the await interaction.channel.send(embed=embed) AFTER you send the info
-
+    await interaction.response.send_message("done", ephemeral=True) # When sending the information of the slash commands in a server change the "✅ Done" to embed=embed and remove the await interaction.channel.send(embed=embed) AFTER you send the info
+    interaction.channel.send(embed=embed)
 # /print
 @client.tree.command(name="print", description="Re-say what you say", guild=GUILD_ID)
 async def printing(interaction: discord.Interaction, printing: str):
