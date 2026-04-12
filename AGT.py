@@ -162,7 +162,7 @@ class View(discord.ui.View):
 @client.tree.command(name="info", description="Bot Info", guild=GUILD_ID)
 async def info(interaction: discord.Interaction):
     embed = discord.Embed(description=(
-            "## PGC Bot System - Command Guide\n"
+            "## AGT Bot System - Command Guide\n"
             "- What every command does and who is allowed to use it :\n"
             "\n"
             ">>> **/info**\n" 
@@ -237,7 +237,7 @@ async def info(interaction: discord.Interaction):
             "* Who can use it: Anyone\n"
             "* Lists the current teams playing within the league.<<<\n"
             "\n"
-            "-# PGC Season Management System - Created by Had3s"), color=0x15D466)
+            "-# AGT Season Management System - Created by Had3s"), color=0x15D466)
     await interaction.response.send_message("done", ephemeral=True) # When sending the information of the slash commands in a server change the "✅ Done" to embed=embed and remove the await interaction.channel.send(embed=embed) AFTER you send the info
     await interaction.channel.send(embed=embed)
 # /print
