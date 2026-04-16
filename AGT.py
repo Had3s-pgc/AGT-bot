@@ -1,4 +1,4 @@
-AGT BOT
+# AGT BOT
 import discord
 import json
 import os
