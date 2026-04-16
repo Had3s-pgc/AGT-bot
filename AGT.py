@@ -1,11 +1,4 @@
-GUILD_ID = discord.Object(id=)
-
-COMMENTATOR_ROLE = 
-REFEREE_ROLE = 
-CASTER_ROLE = 
-
-TRANSACTION_LOG_CHANNEL = 
-#??? BOT
+AGT BOT
 import discord
 import json
 import os
@@ -273,9 +266,9 @@ async def get_seeding_message(guild: discord.Guild):
 
 def build_seeding_embed(order: list, footer: str, points: dict, ended: bool = False, qualifiers: int = None) -> discord.Embed:
     if not ended:
-        description = "# ??? Season's Seeding 🎯\n**Current seedings based on team scores.**"
+        description = "# AGT Season's Seeding 🎯\n**Current seedings based on team scores.**"
     else:
-        description = f"# ??? Seeding Results 🏆\n**Top {qualifiers} teams have moved on! Congradulations!**"
+        description = f"# AGT Seeding Results 🏆\n**Top {qualifiers} teams have moved on! Congradulations!**"
 
     lines = []
     for team, team_key in enumerate(order, start=1):
@@ -579,7 +572,7 @@ async def msg(interaction: discord.Interaction, message: str):
 
 @client.tree.command(name="info", description="Information about the bot's commands", guild=SERVER_ID)
 async def cmd_info(interaction: discord.Interaction):
-    embed = discord.Embed(description="# ??? Bot System — Command Guide\n"
+    embed = discord.Embed(description="# AGT Bot System — Command Guide\n"
             "* What every command does and who is allowed to use it:\n\n"
             ">>> ## Basic commands"
             "**/info**\n"
@@ -668,7 +661,7 @@ async def cmd_info(interaction: discord.Interaction):
             "**/end_seeding**\n"
             "- Who can use it: Administrators\n"
             "- Ends the seeding round and displays which teams have advanced.\n\n"
-            "??? Season Management System - Created by Had3s", color=0xB3B3FC)
+            "AGT Season Management System - Created by Had3s", color=0xB3B3FC)
 # Once you send the embed removed the "await interaction.channel.send(embed=embed)" 
 # Also replace the ""Done"" in "await interaction.response.send_message("Done", ephmeral=True)" with "embed=embed"
     await interaction.response.send_message("Done", ephemeral=True)
@@ -1260,7 +1253,7 @@ async def cmd_set_scrim(interaction: discord.Interaction, time: str, date: str, 
         return
     embed = discord.Embed(
         description=(
-            "# **----------??? OFFICIAL SCRIM----------**\n"
+            "# **----------AGT OFFICIAL SCRIM----------**\n"
             ">>> ## Scrim Details:\n\n"
             f"**Time:** {time}\n"
             f"**Day:** {date}\n"
@@ -1307,7 +1300,7 @@ async def cmd_end_scrim(interaction: discord.Interaction, scrim: str, score1: in
             completed_embed = discord.Embed(
                 description=(
                     "# **----------✅ SCRIM COMPLETED----------**\n"
-                    ">>> ## **Official Scrim For ???:**\n\n"
+                    ">>> ## **Official Scrim For AGT:**\n\n"
                     f"**First Team:** {team1.title()}\n"
                     f"**Second Team:** {team2.title()}\n\n"
                     f"**Result:** {result_str} **{score1} - {score2}**"
