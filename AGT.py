@@ -664,8 +664,7 @@ async def cmd_info(interaction: discord.Interaction):
             "AGT Season Management System - Created by Had3s", color=0xB3B3FC)
 # Once you send the embed removed the "await interaction.channel.send(embed=embed)" 
 # Also replace the ""Done"" in "await interaction.response.send_message("Done", ephmeral=True)" with "embed=embed"
-    await interaction.response.send_message("Done", ephemeral=True)
-    await interaction.channel.send(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
