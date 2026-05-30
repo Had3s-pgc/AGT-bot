@@ -695,8 +695,8 @@ async def cmd_info(interaction: discord.Interaction):
             "- Who can use it: Administrators\n"
             "- Ends the seeding round and displays which teams have advanced.\n\n"
             "SGT Season Management System - Created by Had3s", color=0xB3B3FC)
-    await interaction.response.send_message("Sent", ephemeral=True)
-    await interaction.channel.send(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
     
  
  
