@@ -1,4 +1,4 @@
-#AGT BOT
+#SGT BOT
 import discord
 import json
 import os
@@ -304,9 +304,9 @@ async def get_seeding_message(guild: discord.Guild):
  
 def build_seeding_embed(order: list, footer: str, points: dict, ended: bool = False, qualifiers: int = None) -> discord.Embed:
     if not ended:
-        description = "# AGT Season's Seeding 🎯\n**Current seedings based on team scores.**"
+        description = "# SGT Season's Seeding 🎯\n**Current seedings based on team scores.**"
     else:
-        description = f"# AGT Seeding Results 🏆\n**Top {qualifiers} teams have moved on! Congratulations!**"
+        description = f"# SGT Seeding Results 🏆\n**Top {qualifiers} teams have moved on! Congratulations!**"
  
     lines = []
     for rank, team_key in enumerate(order, start=1):
@@ -608,7 +608,7 @@ async def msg(interaction: discord.Interaction, message: str):
  
 @client.tree.command(name="info", description="Information about the bot's commands", guild=SERVER_ID)
 async def cmd_info(interaction: discord.Interaction):
-    embed = discord.Embed(description="# AGT Bot System — Command Guide\n"
+    embed = discord.Embed(description="# SGT Bot System — Command Guide\n"
             "* What every command does and who is allowed to use it:\n"
             ">>> ## Basic commands\n"
             "**/info**\n"
@@ -694,7 +694,7 @@ async def cmd_info(interaction: discord.Interaction):
             "**/end_seeding**\n"
             "- Who can use it: Administrators\n"
             "- Ends the seeding round and displays which teams have advanced.\n\n"
-            "AGT Season Management System - Created by Had3s", color=0xB3B3FC)
+            "SGT Season Management System - Created by Had3s", color=0xB3B3FC)
     await interaction.response.send_message(embed=embed, ephemeral=True)
     
  
@@ -1286,7 +1286,7 @@ async def cmd_set_scrim(interaction: discord.Interaction, time: str, date: str, 
         return
     embed = discord.Embed(
         description=(
-            "# **----------AGT OFFICIAL SCRIM----------**\n"
+            "# **----------SGT OFFICIAL SCRIM----------**\n"
             ">>> ## Scrim Details:\n\n"
             f"**Time:** {time}\n"
             f"**Day:** {date}\n"
@@ -1333,7 +1333,7 @@ async def cmd_end_scrim(interaction: discord.Interaction, scrim: str, score1: in
             completed_embed = discord.Embed(
                 description=(
                     "# **----------✅ SCRIM COMPLETED----------**\n"
-                    ">>> ## **Official Scrim For AGT\n"
+                    ">>> ## **Official Scrim For SGT\n"
                     f"**First Team:** {team1.title()}\n"
                     f"**Second Team:** {team2.title()}\n\n"
                     f"**Result:** {result_str} **{score1} - {score2}**"
