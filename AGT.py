@@ -9,23 +9,23 @@ from discord.ext import commands
 from discord import app_commands
 from typing import Optional
 from datetime import datetime, timezone
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                              CONFIGURATION                                   ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
-SERVER_ID = discord.Object(id=1432538319023247392)
-
+ 
+SERVER_ID = discord.Object(id=1455476030931210343)
+ 
 # Role IDs
-COMMENTATOR_ROLE = 1432543678110634065
-REFEREE_ROLE     = 1432553923377627247
-CASTER_ROLE      = 1432543740672737462
-
+COMMENTATOR_ROLE = None
+REFEREE_ROLE     = None
+CASTER_ROLE      = None
+ 
 # Channel IDs
-TRANSACTION_LOG_CHANNEL = 1435252196663890033
-AUDIT_LOG_CHANNEL       = 1492736007320113322
-
+TRANSACTION_LOG_CHANNEL = 1460337594339426578
+AUDIT_LOG_CHANNEL       = None
+ 
 # File paths
 DATA_DIR            = "/data"
 TEAMS_FILE          = f"{DATA_DIR}/teams.json"
@@ -36,30 +36,43 @@ FORFEITS_FILE       = f"{DATA_DIR}/forfeits.json"
 SEEDING_FILE        = f"{DATA_DIR}/seeding.json"
 os.makedirs(DATA_DIR, exist_ok=True)
 # ── Seed JSON files if they don't exist ──────────────────────────────────────
-
+ 
 teams_data = {}
-
+ 
 scrims_data = []
-
+ 
 scrim_messages_data = {}
-
+ 
 invites_data = {}
-
+ 
 forfeits_data = {}
-
+ 
 seeding_data = {}
-
-
+ 
+seed_files = {
+    f"{DATA_DIR}/teams.json":          teams_data,
+    f"{DATA_DIR}/scrims.json":         scrims_data,
+    f"{DATA_DIR}/scrim_messages.json": scrim_messages_data,
+    f"{DATA_DIR}/invites.json":        invites_data,
+    f"{DATA_DIR}/forfeits.json":       forfeits_data,
+    f"{DATA_DIR}/seeding.json":        seeding_data,
+}
+ 
+for _path, _data in seed_files.items():
+    if not os.path.exists(_path):
+        with open(_path, "w") as f:
+            json.dump(_data, f, indent=4)
+ 
 # ─────────────────────────────────────────────────────────────────────────────
-
+ 
 # Premium Server ID
-PREMIUM_SERVERS = {1432538319023247392}
-
-
+PREMIUM_SERVERS = {}
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            PERSISTENCE HELPERS                               ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 def load_json_file(path: str, default):
     if not os.path.exists(path):
         return default
@@ -68,64 +81,64 @@ def load_json_file(path: str, default):
         if not content:
             return default
         return json.loads(content)
-
+ 
 def save_json_file(path: str, data):
     with open(path, "w") as f:
         json.dump(data, f, indent=4)
-
+ 
 # Teams
 def load_teams() -> dict:
     data = load_json_file(TEAMS_FILE, {})
     return {k.lower(): v for k, v in data.items()}
-
+ 
 def save_teams():
     save_json_file(TEAMS_FILE, teams)
-
-
+ 
+ 
 # Seeding
 def load_seeding() -> dict:
     return load_json_file(SEEDING_FILE, {})
-
+ 
 def save_seeding(data: dict):
     save_json_file(SEEDING_FILE, data)
-
-
+ 
+ 
 # Scrims
 def load_scrims() -> list:
     data = load_json_file(SCRIMS_FILE, [])
     return data if isinstance(data, list) else []
-
+ 
 def save_scrims():
     save_json_file(SCRIMS_FILE, scrims_schedule)
-
-
+ 
+ 
 # Scrim message IDs
 def load_scrim_messages() -> dict:
     return load_json_file(SCRIM_MESSAGES_FILE, {})
-
+ 
 def save_scrim_messages():
     save_json_file(SCRIM_MESSAGES_FILE, scrim_message_ids)
-
-
+ 
+ 
 # Invites
 def load_invites() -> dict:
     data = load_json_file(INVITES_FILE, {})
     return {int(k): v for k, v in data.items()}
-
+ 
 def save_invites():
     save_json_file(INVITES_FILE, pending_invites)
-
-
+ 
+ 
 # Forfeits
 def load_forfeits() -> dict:
     return load_json_file(FORFEITS_FILE, {})
-
+ 
 def save_forfeits():
     save_json_file(FORFEITS_FILE, forfeits)
-
-
+ 
+ 
 # ── In-memory state ───────────────────────────────────────────────────────────
-
+ 
 teams:            dict = load_teams()
 seeding:          dict = load_seeding()
 scrims_schedule:  list = load_scrims()
@@ -133,12 +146,12 @@ scrim_message_ids: dict = load_scrim_messages()
 scrim_messages:   dict = {}   # {key: discord.Message} — populated at runtime
 pending_invites:  dict = load_invites()
 forfeits:         dict = load_forfeits()
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                               BOT CLIENT                                     ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 class Client(commands.Bot):
     async def on_ready(self):
         print(f'Logged on as {self.user}!')
@@ -148,30 +161,32 @@ class Client(commands.Bot):
             print(f'Synced {len(synced)} commands to guild {SERVER_ID.id}')
         except Exception as e:
             print(f'Error syncing commands: {e}')
-
+ 
 intents = discord.Intents.default()
 intents.members = True
-
+ 
 client = Client(command_prefix="!", intents=intents)
-
+ 
 # --- PREMIUM CHECK ---
 def is_premium():
     async def paid_premium(interaction: discord.Interaction):
         if interaction.guild and interaction.guild.id in PREMIUM_SERVERS:
             return True
-
-        # FIX #4: Corrected grammar "does has not" → "does not"
+ 
         await interaction.response.send_message(
-            "This server does not have premium. If you want access to this command please ask the server owner to contact @had3s.AGT.",
+            "This server does not have premium. If you want access to this command please ask the server owner to contact @had3s.pgc.",
             ephemeral=True)
         return False
-
+ 
     return app_commands.check(paid_premium)
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                               AUDIT LOGGING                                  ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
+ 
+# Deduplication guard — prevents the same interaction from being logged twice
+_logged_interactions: set = set()
 
 async def log_command(interaction: discord.Interaction) -> bool:
     if interaction.command is None:
@@ -179,9 +194,14 @@ async def log_command(interaction: discord.Interaction) -> bool:
     if interaction.type == discord.InteractionType.autocomplete:
         return True
 
+    # Deduplicate — ignore if we've already logged this exact interaction
+    if interaction.id in _logged_interactions:
+        return True
+    _logged_interactions.add(interaction.id)
+ 
     if not interaction.guild or interaction.guild.id not in PREMIUM_SERVERS:
         return True
-
+ 
     channel = interaction.guild.get_channel(AUDIT_LOG_CHANNEL)
     if channel:
         options     = interaction.data.get("options", [])
@@ -193,7 +213,7 @@ async def log_command(interaction: discord.Interaction) -> bool:
                 value = f"<@{value}>"
             parts.append(f"{name}: `{value}`")
         options_str = " ".join(parts)
-
+ 
         embed = discord.Embed(
             description=f"**/{interaction.command.name}**" + (f"\n{options_str}" if options_str else ""),
             color=0xB3B3FC)
@@ -202,20 +222,20 @@ async def log_command(interaction: discord.Interaction) -> bool:
         embed.timestamp = discord.utils.utcnow()
         await channel.send(embed=embed)
     return True
-
+ 
 client.tree.interaction_check = log_command
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            AUTOCOMPLETE HANDLERS                             ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 async def team_autocomplete(interaction: discord.Interaction, current: str):
     return [
         app_commands.Choice(name=name.title(), value=name)
         for name in teams if current.lower() in name.lower()
     ][:25]
-
+ 
 async def seeding_team_autocomplete(interaction: discord.Interaction, current: str):
     try:
         order  = seeding.get("order", [])
@@ -226,7 +246,7 @@ async def seeding_team_autocomplete(interaction: discord.Interaction, current: s
         ][:25]
     except Exception:
         return []
-
+ 
 async def scrim_autocomplete(interaction: discord.Interaction, current: str):
     return [
         app_commands.Choice(
@@ -236,23 +256,23 @@ async def scrim_autocomplete(interaction: discord.Interaction, current: str):
         for s in scrims_schedule
         if current.lower() in f"{s['team1']} {s['team2']}".lower()
     ][:25]
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                              UTILITY FUNCTIONS                               ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 def get_player_team(player_id: int) -> str | None:
     for key, team in teams.items():
         if player_id in team["players"]:
             return key
     return None
-
+ 
 async def log_transaction(interaction: discord.Interaction, message: str):
     channel = interaction.guild.get_channel(TRANSACTION_LOG_CHANNEL)
     if channel:
         await channel.send(message)
-
+ 
 async def get_scrim_message(guild: discord.Guild, key: str):
     if key in scrim_messages:
         return scrim_messages[key]
@@ -268,7 +288,7 @@ async def get_scrim_message(guild: discord.Guild, key: str):
         return msg
     except (discord.NotFound, discord.Forbidden):
         return None
-
+ 
 async def get_seeding_message(guild: discord.Guild):
     channel_id = seeding.get("channel_id")
     message_id = seeding.get("message_id")
@@ -281,51 +301,48 @@ async def get_seeding_message(guild: discord.Guild):
         return await channel.fetch_message(message_id)
     except (discord.NotFound, discord.Forbidden):
         return None
-
-# FIX #1: Renamed loop index `team` → `rank` to avoid overwriting it with the dict lookup below.
-# Previously `team` was used both as the enumerate counter AND then reassigned to teams.get(...),
-# which meant the prefix check `team <= qualifiers` was comparing a dict to an int → crash.
+ 
 def build_seeding_embed(order: list, footer: str, points: dict, ended: bool = False, qualifiers: int = None) -> discord.Embed:
     if not ended:
         description = "# AGT Season's Seeding 🎯\n**Current seedings based on team scores.**"
     else:
         description = f"# AGT Seeding Results 🏆\n**Top {qualifiers} teams have moved on! Congratulations!**"
-
+ 
     lines = []
-    for rank, team_key in enumerate(order, start=1):   # FIX #1: was `team, team_key`
-        team_data   = teams.get(team_key, {})           # FIX #1: was `team = teams.get(...)`
+    for rank, team_key in enumerate(order, start=1):
+        team_data   = teams.get(team_key, {})
         wins        = team_data.get("wins", 0)
         losses      = team_data.get("losses", 0)
         draws       = team_data.get("draws", 0)
         team_points = points.get(team_key, 0)
-        prefix      = ("✅" if rank <= qualifiers else "❌") if (ended and qualifiers is not None) else ""  # FIX #1: was `team <= qualifiers`
+        prefix      = ("✅" if rank <= qualifiers else "❌") if (ended and qualifiers is not None) else ""
         lines.append(
             f"## {prefix} **#{rank} {team_key.title()}**\n"
             f"> **{wins}W | {losses}L | {draws}D | {team_points}pts**"
         )
-
+ 
     embed = discord.Embed(
         description=description + "\n\n" + "\n\n".join(lines),
         color=0xB3B3FC if not ended else discord.Color.gold())
     embed.set_footer(text=footer)
     return embed
-
+ 
 async def _apply_seeding_result(interaction: discord.Interaction, winner: str, loser: str, label: str):
     if not (seeding and seeding.get("order") and not seeding.get("locked")):
         return
-
+ 
     win_pts = seeding.get("win_points", 0)
     loss_pts = seeding.get("loss_points", 0)
     points  = seeding.get("points", {})
     updated = False
-
+ 
     if winner in points:
         points[winner] = points.get(winner, 0) + win_pts
         updated = True
     if loser in points:
         points[loser] = points.get(loser, 0) + loss_pts
         updated = True
-
+ 
     if updated:
         order = sorted(points, key=lambda k: points[k], reverse=True)
         seeding["order"]  = order
@@ -335,22 +352,22 @@ async def _apply_seeding_result(interaction: discord.Interaction, winner: str, l
         original_msg = await get_seeding_message(interaction.guild)
         if original_msg:
             await original_msg.edit(embed=seed_embed)
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                               SCRIM VIEW (UI)                                ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 class ScrimView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-
+ 
     async def has_role(self, interaction: discord.Interaction, *role_ids: int) -> bool:
         if not any(role.id in role_ids for role in interaction.user.roles):
             await interaction.response.send_message("You don't have the required role for this.", ephemeral=True)
             return False
         return True
-
+ 
     def lock_if_full(self, description: str):
         all_filled = (
             "**Commentator:** None"    not in description
@@ -362,7 +379,7 @@ class ScrimView(discord.ui.View):
             for item in self.children:
                 if hasattr(item, "custom_id") and item.custom_id != "scrim:leave":
                     item.disabled = True
-
+ 
     @discord.ui.button(label="Be Commentator",     style=discord.ButtonStyle.gray, emoji="🎙️", custom_id="scrim:commentator")
     async def com(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.has_role(interaction, COMMENTATOR_ROLE):
@@ -378,7 +395,7 @@ class ScrimView(discord.ui.View):
         button.disabled = True
         self.lock_if_full(embed.description)
         await interaction.response.edit_message(embed=embed, view=self)
-
+ 
     @discord.ui.button(label="Be 2nd Commentator", style=discord.ButtonStyle.gray, emoji="🎤", custom_id="scrim:commentator2")
     async def com2(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.has_role(interaction, COMMENTATOR_ROLE):
@@ -394,7 +411,7 @@ class ScrimView(discord.ui.View):
         button.disabled = True
         self.lock_if_full(embed.description)
         await interaction.response.edit_message(embed=embed, view=self)
-
+ 
     @discord.ui.button(label="Be Referee",         style=discord.ButtonStyle.gray, emoji="⁉️", custom_id="scrim:referee")
     async def ref(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.has_role(interaction, REFEREE_ROLE):
@@ -410,7 +427,7 @@ class ScrimView(discord.ui.View):
         button.disabled = True
         self.lock_if_full(embed.description)
         await interaction.response.edit_message(embed=embed, view=self)
-
+ 
     @discord.ui.button(label="Be Caster",          style=discord.ButtonStyle.gray, emoji="📸", custom_id="scrim:caster")
     async def cast(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.has_role(interaction, CASTER_ROLE):
@@ -426,9 +443,7 @@ class ScrimView(discord.ui.View):
         button.disabled = True
         self.lock_if_full(embed.description)
         await interaction.response.edit_message(embed=embed, view=self)
-
-    # FIX #6: Removed `defer()` + direct `message.edit()` mix which caused interaction conflicts.
-    # Now uses `interaction.response.edit_message()` directly (no defer needed for a simple edit).
+ 
     @discord.ui.button(label="Exit Role",          style=discord.ButtonStyle.gray, emoji="🚫", custom_id="scrim:leave")
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.has_role(interaction, CASTER_ROLE, COMMENTATOR_ROLE, REFEREE_ROLE):
@@ -451,8 +466,8 @@ class ScrimView(discord.ui.View):
             if value in embed.description:
                 label = value.split(f": {interaction.user.mention}")[0]
                 embed.description = embed.description.replace(value, f"{label}: None")
-        await interaction.response.edit_message(embed=embed, view=self)  # FIX #6: was defer() + message.edit()
-
+        await interaction.response.edit_message(embed=embed, view=self)
+ 
     @discord.ui.button(label="Cancel Scrim",       style=discord.ButtonStyle.red,  emoji="❌", custom_id="scrim:cancel")
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.user.guild_permissions.administrator:
@@ -464,26 +479,25 @@ class ScrimView(discord.ui.View):
         for child in self.children:
             child.disabled = True
         await interaction.response.edit_message(embed=embed, view=self)
-        await log_transaction(interaction, f"A scrim was cancelled by {interaction.user.mention}.")
         await interaction.followup.send("Scrim has been cancelled.", ephemeral=True)
-
-
+ 
+ 
 # INVITE VIEW
-
+ 
 class MyInvitesView(discord.ui.View):
     def __init__(self, player: discord.Member, invites: list):
         super().__init__(timeout=60)
         self.player = player
         for invite in invites:
             self.add_item(InviteButton(invite["team_name"], invite["inviter_id"]))
-
-
+ 
+ 
 class InviteButton(discord.ui.Button):
     def __init__(self, team_name: str, inviter_id: int):
         super().__init__(label=team_name.title(), style=discord.ButtonStyle.blurple, emoji="📨")
         self.team_name  = team_name
         self.inviter_id = inviter_id
-
+ 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.view.player.id:
             await interaction.response.send_message("These invites are not for you.", ephemeral=True)
@@ -492,8 +506,8 @@ class InviteButton(discord.ui.Button):
         await interaction.response.edit_message(
             content=f"You have an invite to **{self.team_name.title()}** from <@{self.inviter_id}>. Accept or decline?",
             view=view)
-
-
+ 
+ 
 class InviteActionView(discord.ui.View):
     def __init__(self, player: discord.Member, team_name: str, inviter_id: int, previous_view):
         super().__init__(timeout=60)
@@ -501,7 +515,7 @@ class InviteActionView(discord.ui.View):
         self.team_name     = team_name
         self.inviter_id    = inviter_id
         self.previous_view = previous_view
-
+ 
     @discord.ui.button(label="Accept", style=discord.ButtonStyle.gray, emoji="✅")
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.player.id:
@@ -541,7 +555,7 @@ class InviteActionView(discord.ui.View):
         save_teams()
         await log_transaction(interaction, f"{self.player.mention} accepted the invite to **{self.team_name.title()}**.")
         await interaction.response.edit_message(content=f"You have joined **{self.team_name.title()}**!", view=None)
-
+ 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.gray, emoji="❌")
     async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.player.id:
@@ -553,12 +567,12 @@ class InviteActionView(discord.ui.View):
             ]
             save_invites()
         await interaction.response.edit_message(content=f"You declined the invite to **{self.team_name.title()}**.", view=None)
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                                   EVENTS                                     ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 @client.event
 async def on_member_remove(member: discord.Member):
     key = get_player_team(member.id)
@@ -576,12 +590,12 @@ async def on_member_remove(member: discord.Member):
         await channel.send(
             f"{member.mention} (`{member.name}`) left the server and was automatically removed from **{key.title()}**."
         )
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            COMMANDS — GENERAL                                ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 @client.tree.command(name="print", description="Print a message", guild=SERVER_ID)
 @is_premium()
 async def msg(interaction: discord.Interaction, message: str):
@@ -590,11 +604,10 @@ async def msg(interaction: discord.Interaction, message: str):
         return
     await interaction.response.send_message("Your message was sent!", ephemeral=True)
     await interaction.channel.send(message)
-
-
+ 
+ 
 @client.tree.command(name="info", description="Information about the bot's commands", guild=SERVER_ID)
 async def cmd_info(interaction: discord.Interaction):
-    # FIX #5: Removed duplicate /check_scrims entry, added missing /schedule entry
     embed = discord.Embed(description="# AGT Bot System — Command Guide\n"
             "* What every command does and who is allowed to use it:\n"
             ">>> ## Basic commands\n"
@@ -640,7 +653,7 @@ async def cmd_info(interaction: discord.Interaction):
             "**/assign_captain**\n"
             "- Who can use it: Administrators\n"
             "- Assigns a captain to a team.\n"
-
+ 
             "## Premium Commands\n"
             "**/print**\n"
             "- Who can use it: Administrators\n"
@@ -683,19 +696,18 @@ async def cmd_info(interaction: discord.Interaction):
             "- Ends the seeding round and displays which teams have advanced.\n\n"
             "AGT Season Management System - Created by Had3s", color=0xB3B3FC)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
-
+ 
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            COMMANDS — TEAMS                                  ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 @client.tree.command(name="create_team", description="Create a new team", guild=SERVER_ID)
 async def create_team(interaction: discord.Interaction, team_name: str, captain_name: discord.Member, co_captain_name: Optional[discord.Member] = None):
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message("You don't have permission to create teams.", ephemeral=True)
         return
-    # FIX #3: Use team_name.lower() for all dict lookups so keys are always lowercase
     key = team_name.lower()
     if key in teams:
         await interaction.response.send_message(f"**{team_name.title()}** already exists.", ephemeral=True)
@@ -709,17 +721,16 @@ async def create_team(interaction: discord.Interaction, team_name: str, captain_
         if existing:
             await interaction.response.send_message(f"{co_captain_name.mention} is already on **{existing.title()}**, choose another member.", ephemeral=True)
             return
-
+ 
     await interaction.response.defer(ephemeral=True)
     team_role       = await interaction.guild.create_role(name=team_name.title())
     captain_role    = await interaction.guild.create_role(name=f"{team_name.title()} | Captain")
     co_captain_role = await interaction.guild.create_role(name=f"{team_name.title()} | Co-Captain")
-
+ 
     await captain_name.add_roles(team_role, captain_role)
     if co_captain_name:
         await co_captain_name.add_roles(team_role, co_captain_role)
-
-    # FIX #3: Store under lowercase key so it matches all other lookups
+ 
     teams[key] = {
         "name":           team_name,
         "captain":        captain_name.id,
@@ -737,7 +748,7 @@ async def create_team(interaction: discord.Interaction, team_name: str, captain_
         f"# **{team_name.title()}** has been created.\n"
         f">>> ### Captain: {captain_name.mention}\n"
         f"### Co-Captain: {co_captain_name.mention if co_captain_name else 'None'}")
-
+ 
     embed = discord.Embed(
         description=(
             f"**{team_name.title()}** was created.\n"
@@ -747,8 +758,8 @@ async def create_team(interaction: discord.Interaction, team_name: str, captain_
             f"• {co_captain_role.mention}"
         ), color=0xB3B3FC)
     await interaction.followup.send(embed=embed, ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="disband_team", description="Disbands an existing team", guild=SERVER_ID)
 @app_commands.autocomplete(team_name=team_autocomplete)
 async def disband_team(interaction: discord.Interaction, team_name: str):
@@ -759,20 +770,20 @@ async def disband_team(interaction: discord.Interaction, team_name: str):
     if key not in teams:
         await interaction.response.send_message(f"**{team_name.title()}** does not exist.", ephemeral=True)
         return
-
+ 
     await interaction.response.defer(ephemeral=True)
     team            = teams[key]
     team_role       = interaction.guild.get_role(team["team_role"])
     captain_role    = interaction.guild.get_role(team["captain_role"])
     co_captain_role = interaction.guild.get_role(team["co_captain_role"])
-
+ 
     for pid in team["players"]:
         member = interaction.guild.get_member(pid)
         if member:
             roles_to_remove = [r for r in [team_role, captain_role, co_captain_role] if r and r in member.roles]
             if roles_to_remove:
                 await member.remove_roles(*roles_to_remove)
-
+ 
     for role_key in ["team_role", "captain_role", "co_captain_role"]:
         try:
             role = interaction.guild.get_role(team[role_key]) or discord.utils.get(
@@ -781,13 +792,13 @@ async def disband_team(interaction: discord.Interaction, team_name: str):
                 await role.delete()
         except discord.NotFound:
             pass
-
+ 
     del teams[key]
     save_teams()
     await log_transaction(interaction, f"Team **{team_name.title()}** was disbanded by {interaction.user.mention}.")
     await interaction.followup.send("Team Disbanded.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="disband_all", description="Disbands all teams", guild=SERVER_ID)
 @is_premium()
 async def disband_all(interaction: discord.Interaction):
@@ -797,7 +808,7 @@ async def disband_all(interaction: discord.Interaction):
     if not teams:
         await interaction.response.send_message("No teams currently exist.", ephemeral=True)
         return
-
+ 
     await interaction.response.defer(ephemeral=True)
     for key in list(teams.keys()):
         team            = teams[key]
@@ -818,18 +829,17 @@ async def disband_all(interaction: discord.Interaction):
                     await role.delete()
             except discord.NotFound:
                 pass
-
+ 
     teams.clear()
     save_teams()
     await log_transaction(interaction, f"All teams were disbanded by {interaction.user.mention}.")
     await interaction.followup.send("All teams disbanded.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="list_teams", description="List all active teams", guild=SERVER_ID)
 @is_premium()
 async def list_teams(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
-        # FIX #2: Added `return` so execution doesn't continue, and added ephemeral=True
         await interaction.response.send_message("You do not have permissions to list teams.", ephemeral=True)
         return
     if not teams:
@@ -838,8 +848,8 @@ async def list_teams(interaction: discord.Interaction):
     team_list = "\n".join([f"• **(-- {name.title()} --)**" for name in teams])
     embed = discord.Embed(description=f"## 🏆 Current Season Teams:\n>>> {team_list}", color=0xB3B3FC)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="roster", description="Show the roster of a team", guild=SERVER_ID)
 @app_commands.autocomplete(team_name=team_autocomplete)
 async def roster(interaction: discord.Interaction, team_name: str):
@@ -857,8 +867,8 @@ async def roster(interaction: discord.Interaction, team_name: str):
         f"**Co-Captain:** {co_captain}\n"
         f"**Players:**\n{players}\n"), color=0xB3B3FC)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="lock_rosters", description="Lock all team rosters", guild=SERVER_ID)
 async def lock_rosters(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
@@ -872,8 +882,8 @@ async def lock_rosters(interaction: discord.Interaction):
     save_teams()
     await log_transaction(interaction, f"All rosters were locked by {interaction.user.mention}.")
     await interaction.response.send_message("All Rosters Locked.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="unlock_rosters", description="Unlock all team rosters", guild=SERVER_ID)
 async def cmd_unlock_rosters(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
@@ -887,8 +897,8 @@ async def cmd_unlock_rosters(interaction: discord.Interaction):
     save_teams()
     await log_transaction(interaction, f"All rosters were unlocked by {interaction.user.mention}.")
     await interaction.response.send_message("All Rosters Unlocked.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="add_player", description="Manually add a player to a team (Admin only)", guild=SERVER_ID)
 @is_premium()
 @app_commands.autocomplete(team_name=team_autocomplete)
@@ -921,8 +931,8 @@ async def cmd_add_player(interaction: discord.Interaction, team_name: str, playe
     save_teams()
     await log_transaction(interaction, f"{player.mention} was manually added to **{team_name.title()}** by {interaction.user.mention}.")
     await interaction.response.send_message(f"{player.mention} has been added to **{team_name.title()}**.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="kick_player", description="Kick a player from a team", guild=SERVER_ID)
 @app_commands.autocomplete(team_name=team_autocomplete)
 async def cmd_kick_player(interaction: discord.Interaction, team_name: str, player: discord.Member):
@@ -959,8 +969,8 @@ async def cmd_kick_player(interaction: discord.Interaction, team_name: str, play
     save_teams()
     await log_transaction(interaction, f"{player.mention} was removed from **{team_name.title()}**.")
     await interaction.response.send_message("Done.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="leave_team", description="Leave your current team", guild=SERVER_ID)
 async def cmd_leave_team(interaction: discord.Interaction):
     key = get_player_team(interaction.user.id)
@@ -981,8 +991,8 @@ async def cmd_leave_team(interaction: discord.Interaction):
     save_teams()
     await log_transaction(interaction, f"{interaction.user.mention} left **{key.title()}**.")
     await interaction.response.send_message(f"You have left **{key.title()}**.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="assign_captain", description="Assign a captain to a team", guild=SERVER_ID)
 @app_commands.autocomplete(team_name=team_autocomplete)
 async def cmd_assign_captain(interaction: discord.Interaction, team_name: str, player: discord.Member):
@@ -1012,8 +1022,8 @@ async def cmd_assign_captain(interaction: discord.Interaction, team_name: str, p
     save_teams()
     await log_transaction(interaction, f"{player.mention} was assigned as captain of **{team_name.title()}**.")
     await interaction.response.send_message("Done.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="assign_cocaptain", description="Assign a co-captain to a team", guild=SERVER_ID)
 @app_commands.autocomplete(team_name=team_autocomplete)
 async def cmd_assign_cocaptain(interaction: discord.Interaction, team_name: str, player: discord.Member):
@@ -1045,8 +1055,8 @@ async def cmd_assign_cocaptain(interaction: discord.Interaction, team_name: str,
     save_teams()
     await log_transaction(interaction, f"{player.mention} was assigned as co-captain of **{team_name.title()}**.")
     await interaction.response.send_message("Done.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="transfer_captain", description="Transfer captaincy to another player", guild=SERVER_ID)
 @app_commands.autocomplete(team_name=team_autocomplete)
 async def cmd_transfer_captain(interaction: discord.Interaction, team_name: str, player: discord.Member):
@@ -1079,17 +1089,17 @@ async def cmd_transfer_captain(interaction: discord.Interaction, team_name: str,
         await player.add_roles(captain_role)
     team["captain"] = player.id
     save_teams()
-    await log_transaction(interaction, f"Captaincy of **{team_name.title()}** was transferred to {player.mention}.")
+    await log_transaction(interaction, f"**{player.mention} is now the captain of {team_name.title()}**.")
     embed = discord.Embed(
-        description=f"Captaincy of **{team_name.title()}** has been transferred to {player.mention}.",
+        description=f"**{player.mention} is now the captain of {team_name.title()}**.",
         color=0xB3B3FC)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            COMMANDS — INVITES                                ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 @client.tree.command(name="invite_player", description="Invite a player to a team", guild=SERVER_ID)
 @app_commands.autocomplete(team_name=team_autocomplete)
 async def cmd_invite_player(interaction: discord.Interaction, team_name: str, player: discord.Member):
@@ -1134,8 +1144,8 @@ async def cmd_invite_player(interaction: discord.Interaction, team_name: str, pl
     pending_invites[player.id].append({"team_name": key, "inviter_id": interaction.user.id})
     save_invites()
     await interaction.response.send_message(f"Invite sent to {player.mention} for **{team_name.title()}**.", ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="check_invites", description="View your pending team invites", guild=SERVER_ID)
 async def cmd_check_invites(interaction: discord.Interaction):
     invites = pending_invites.get(interaction.user.id, [])
@@ -1146,12 +1156,12 @@ async def cmd_check_invites(interaction: discord.Interaction):
         content="## Your pending invites\nClick a team to accept or decline their invite:",
         view=MyInvitesView(interaction.user, invites),
         ephemeral=True)
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            COMMANDS — SEEDING                                ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 @client.tree.command(name="create_seeding", description="Create a seeding round for teams", guild=SERVER_ID)
 @is_premium()
 @app_commands.describe(win_points="Points awarded per win", loss_points="Points awarded per loss")
@@ -1182,8 +1192,8 @@ async def cmd_create_seeding(interaction: discord.Interaction, win_points: int, 
         "locked":      False,
     })
     save_seeding(seeding)
-
-
+ 
+ 
 @client.tree.command(name="edit_seeding", description="Add or remove points from a team", guild=SERVER_ID)
 @is_premium()
 @app_commands.autocomplete(team_name=seeding_team_autocomplete)
@@ -1219,8 +1229,8 @@ async def cmd_edit_seeding(interaction: discord.Interaction, team_name: str, poi
         seeding["channel_id"] = interaction.channel.id
         seeding["message_id"] = msg.id
         save_seeding(seeding)
-
-
+ 
+ 
 @client.tree.command(name="end_seeding", description="End the seeding and show qualifying teams", guild=SERVER_ID)
 @is_premium()
 @app_commands.describe(qualifiers="Number of teams that advance")
@@ -1256,13 +1266,13 @@ async def cmd_end_seeding(interaction: discord.Interaction, qualifiers: int):
         seeding["channel_id"] = interaction.channel.id
         seeding["message_id"] = msg.id
         save_seeding(seeding)
-    await log_transaction(interaction, f"Seeding ended by {interaction.user.mention}. {qualifiers}/{len(order)} teams advanced.")
-
-
+ 
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            COMMANDS — SCRIMS                                 ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 @client.tree.command(name="set_scrim", description="Set a time and date for a scrim", guild=SERVER_ID)
 @is_premium()
 @app_commands.autocomplete(first_team=team_autocomplete, second_team=team_autocomplete)
@@ -1294,8 +1304,8 @@ async def cmd_set_scrim(interaction: discord.Interaction, time: str, date: str, 
     save_scrim_messages()
     scrims_schedule.append({"time": time, "date": date, "team1": first_team.title(), "team2": second_team.title()})
     save_scrims()
-
-
+ 
+ 
 @client.tree.command(name="end_scrim", description="End and record the score of a scrim", guild=SERVER_ID)
 @is_premium()
 @app_commands.autocomplete(scrim=scrim_autocomplete)
@@ -1311,7 +1321,7 @@ async def cmd_end_scrim(interaction: discord.Interaction, scrim: str, score1: in
     if team1 == team2:
         await interaction.response.send_message("Both teams cannot be the same.", ephemeral=True)
         return
-
+ 
     key = f"{team1}_{team2}"
     msg = await get_scrim_message(interaction.guild, key)
     if msg:
@@ -1333,14 +1343,14 @@ async def cmd_end_scrim(interaction: discord.Interaction, scrim: str, score1: in
         scrim_messages.pop(key, None)
         scrim_message_ids.pop(key, None)
         save_scrim_messages()
-
+ 
     global scrims_schedule
     scrims_schedule = [
         s for s in scrims_schedule
         if not (s["team1"].lower() == team1 and s["team2"].lower() == team2)
     ]
     save_scrims()
-
+ 
     if score1 == score2:
         if team1 in teams: teams[team1]["draws"] = teams[team1].get("draws", 0) + 1
         if team2 in teams: teams[team2]["draws"] = teams[team2].get("draws", 0) + 1
@@ -1370,7 +1380,7 @@ async def cmd_end_scrim(interaction: discord.Interaction, scrim: str, score1: in
         if loser  in teams: teams[loser]["losses"]  = teams[loser].get("losses", 0) + 1
         save_teams()
         await _apply_seeding_result(interaction, winner, loser, f"Updated after {team1.title()} vs {team2.title()}")
-
+ 
     outcome      = "🤝 Draw" if score1 == score2 else f"🏆 {team1.title() if score1 > score2 else team2.title()} Wins"
     result_embed = discord.Embed(description="# 🏆 Scrim Result", color=0xB3B3FC)
     result_embed.add_field(name="Match",  value=f"{team1.title()} 🆚 {team2.title()}", inline=False)
@@ -1381,8 +1391,8 @@ async def cmd_end_scrim(interaction: discord.Interaction, scrim: str, score1: in
     result_embed.set_footer(text="Good Game!")
     await interaction.response.send_message("Scrim score logged.", ephemeral=True)
     await interaction.channel.send(embed=result_embed)
-
-
+ 
+ 
 @client.tree.command(name="check_scrims", description="View upcoming scrims", guild=SERVER_ID)
 @is_premium()
 async def cmd_check_scrims(interaction: discord.Interaction):
@@ -1392,8 +1402,8 @@ async def cmd_check_scrims(interaction: discord.Interaction):
     lines = "\n".join([f"• **{s['team1']}** vs **{s['team2']}** — {s['date']} at {s['time']}" for s in scrims_schedule])
     embed = discord.Embed(title="Upcoming Scrims:", description=f">>> {lines}", color=0xB3B3FC)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
+ 
+ 
 @client.tree.command(name="schedule", description="View the full upcoming scrim schedule", guild=SERVER_ID)
 async def cmd_schedule(interaction: discord.Interaction):
     if not scrims_schedule:
@@ -1416,8 +1426,8 @@ async def cmd_schedule(interaction: discord.Interaction):
             lines.append(f"🕐 **{s['time']}** — {t1_display} vs {t2_display}")
         embed.add_field(name=f"📆 {date}", value="\n".join(lines), inline=False)
     await interaction.response.send_message(embed=embed)
-
-
+ 
+ 
 @client.tree.command(name="create_scrim_channel", description="Create a private channel for two teams' scrim", guild=SERVER_ID)
 @is_premium()
 @app_commands.autocomplete(first_team=team_autocomplete, second_team=team_autocomplete)
@@ -1440,14 +1450,14 @@ async def cmd_create_scrim_channel(interaction: discord.Interaction, first_team:
     if t2_key not in teams:
         await interaction.response.send_message(f"**{second_team.title()}** does not exist.", ephemeral=True)
         return
-
+ 
     await interaction.response.defer(ephemeral=True)
     team1    = teams[t1_key]
     team2    = teams[t2_key]
     category = discord.utils.get(interaction.guild.categories, name=category_name.upper())
     if category is None:
         category = await interaction.guild.create_category(category_name.upper())
-
+ 
     overwrites = {interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False)}
     t1_role = interaction.guild.get_role(team1["team_role"])
     t2_role = interaction.guild.get_role(team2["team_role"])
@@ -1458,13 +1468,13 @@ async def cmd_create_scrim_channel(interaction: discord.Interaction, first_team:
     for role in interaction.guild.roles:
         if role.permissions.administrator:
             overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True)
-
+ 
     channel = await interaction.guild.create_text_channel(
         name=f"scrim-{t1_key}-vs-{t2_key}",
         category=category,
         overwrites=overwrites,
         topic=f"Private scrim channel: {first_team.title()} vs {second_team.title()}")
-
+ 
     welcome_embed = discord.Embed(
         description=(
             f"# 🎮 Scrim Channel\n"
@@ -1475,15 +1485,13 @@ async def cmd_create_scrim_channel(interaction: discord.Interaction, first_team:
         ), color=0xB3B3FC)
     welcome_embed.set_footer(text="Good luck to both teams!")
     await channel.send(embed=welcome_embed)
-    await log_transaction(interaction,
-        f"Scrim channel {channel.mention} created for **{first_team.title()}** vs **{second_team.title()}** by {interaction.user.mention}.")
     await interaction.followup.send(f"✅ Scrim channel created: {channel.mention}", ephemeral=True)
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                            COMMANDS — FORFEITS                               ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 @client.tree.command(name="forfeit_scrim", description="Mark a team as forfeiting a scrim (admin only)", guild=SERVER_ID)
 @is_premium()
 @app_commands.autocomplete(scrim=scrim_autocomplete, forfeiting_team=team_autocomplete)
@@ -1505,11 +1513,11 @@ async def cmd_forfeit_scrim(interaction: discord.Interaction, scrim: str, forfei
     if forfeit_key not in [team1.lower(), team2.lower()]:
         await interaction.response.send_message(f"**{forfeiting_team.title()}** is not in this scrim.", ephemeral=True)
         return
-
+ 
     winner = team2 if forfeit_key == team1.lower() else team1
     loser  = forfeit_key
     key    = f"{team1}_{team2}"
-
+ 
     msg = await get_scrim_message(interaction.guild, key)
     if msg:
         try:
@@ -1529,18 +1537,18 @@ async def cmd_forfeit_scrim(interaction: discord.Interaction, scrim: str, forfei
         scrim_messages.pop(key, None)
         scrim_message_ids.pop(key, None)
         save_scrim_messages()
-
+ 
     scrims_schedule = [
         s for s in scrims_schedule
         if not (s["team1"].lower() == team1.lower() and s["team2"].lower() == team2.lower())
     ]
     save_scrims()
-
+ 
     if winner in teams: teams[winner]["wins"]   = teams[winner].get("wins", 0) + 1
     if loser  in teams: teams[loser]["losses"]  = teams[loser].get("losses", 0) + 1
     save_teams()
     await _apply_seeding_result(interaction, winner, loser, f"Updated after {loser.title()} forfeited vs {winner.title()}")
-
+ 
     result_embed = discord.Embed(
         description=(
             f"# 🚫 Scrim Forfeit\n"
@@ -1550,11 +1558,10 @@ async def cmd_forfeit_scrim(interaction: discord.Interaction, scrim: str, forfei
             f"**Reason:** {reason}"
         ), color=discord.Color.orange())
     result_embed.set_footer(text=f"Forfeit logged by {interaction.user.display_name}")
-    await log_transaction(interaction, f"**{loser.title()}** forfeited their scrim against **{winner.title()}**. Reason: {reason}")
     await interaction.response.send_message("Forfeit logged.", ephemeral=True)
     await interaction.channel.send(embed=result_embed)
-
-
+ 
+ 
 @client.tree.command(name="autoforfeit_scrim", description="Flag a team for auto-forfeit on their next scrim (admin only)", guild=SERVER_ID)
 @is_premium()
 @app_commands.autocomplete(team_name=team_autocomplete)
@@ -1571,7 +1578,7 @@ async def cmd_autoforfeit_scrim(interaction: discord.Interaction, team_name: str
     if key not in teams:
         await interaction.response.send_message(f"**{team_name.title()}** does not exist.", ephemeral=True)
         return
-
+ 
     if confirm:
         next_scrim = next(
             (s for s in scrims_schedule if s["team1"].lower() == key or s["team2"].lower() == key),
@@ -1579,11 +1586,11 @@ async def cmd_autoforfeit_scrim(interaction: discord.Interaction, team_name: str
         if next_scrim is None:
             await interaction.response.send_message(f"**{team_name.title()}** has no upcoming scrims to forfeit.", ephemeral=True)
             return
-
+ 
         winner    = next_scrim["team2"].lower() if next_scrim["team1"].lower() == key else next_scrim["team1"].lower()
         loser     = key
         embed_key = f"{next_scrim['team1'].lower()}_{next_scrim['team2'].lower()}"
-
+ 
         msg = await get_scrim_message(interaction.guild, embed_key)
         if msg:
             try:
@@ -1601,23 +1608,23 @@ async def cmd_autoforfeit_scrim(interaction: discord.Interaction, team_name: str
             scrim_messages.pop(embed_key, None)
             scrim_message_ids.pop(embed_key, None)
             save_scrim_messages()
-
+ 
         scrims_schedule = [
             s for s in scrims_schedule
             if not (s["team1"].lower() == next_scrim["team1"].lower()
                     and s["team2"].lower() == next_scrim["team2"].lower())
         ]
         save_scrims()
-
+ 
         if winner in teams: teams[winner]["wins"]   = teams[winner].get("wins", 0) + 1
         if loser  in teams: teams[loser]["losses"]  = teams[loser].get("losses", 0) + 1
         save_teams()
         await _apply_seeding_result(interaction, winner, loser, f"Updated after {loser.title()} auto-forfeited")
-
+ 
         if key in forfeits:
             del forfeits[key]
             save_forfeits()
-
+ 
         result_embed = discord.Embed(
             description=(
                 f"# ⚠️ Auto-Forfeit Applied\n"
@@ -1625,11 +1632,11 @@ async def cmd_autoforfeit_scrim(interaction: discord.Interaction, team_name: str
                 f"**Reason:** {reason}"
             ), color=discord.Color.red())
         result_embed.set_footer(text=f"Auto-forfeit by {interaction.user.display_name}")
-        await log_transaction(interaction, f"**{loser.title()}** was auto-forfeited against **{winner.title()}**. Reason: {reason}")
+    
         await interaction.response.send_message("Auto-forfeit applied.", ephemeral=True)
         await interaction.channel.send(embed=result_embed)
         return
-
+ 
     # Toggle the warning flag
     if key in forfeits and forfeits[key].get("auto_forfeit"):
         del forfeits[key]
@@ -1637,7 +1644,6 @@ async def cmd_autoforfeit_scrim(interaction: discord.Interaction, team_name: str
         embed = discord.Embed(
             description=f"✅ Auto-forfeit flag **removed** from **{team_name.title()}**.",
             color=0xB3B3FC)
-        await log_transaction(interaction, f"Auto-forfeit flag removed from **{team_name.title()}** by {interaction.user.mention}.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
         forfeits[key] = {
@@ -1654,12 +1660,11 @@ async def cmd_autoforfeit_scrim(interaction: discord.Interaction, team_name: str
                 f"They will appear as ~~strikethrough~~ ⚠️ in `/schedule`.\n"
                 f"Run this command again to remove the flag, or use `confirm:True` to immediately forfeit their next scrim."
             ), color=discord.Color.orange())
-        await log_transaction(interaction, f"**{team_name.title()}** was flagged for auto-forfeit by {interaction.user.mention}. Reason: {reason}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
+ 
+ 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                                   ENTRYPOINT                                 ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-
+ 
 client.run(os.getenv('TOKEN'))
