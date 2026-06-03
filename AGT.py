@@ -18,13 +18,13 @@ from datetime import datetime, timezone
 SERVER_ID = discord.Object(id=1455476030931210343)
  
 # Role IDs
-COMMENTATOR_ROLE = None
-REFEREE_ROLE     = None
-CASTER_ROLE      = None
+COMMENTATOR_ROLE = 1457029603095740591
+REFEREE_ROLE     = 1455502932790214747
+CASTER_ROLE      = 1455503580827222219
  
 # Channel IDs
 TRANSACTION_LOG_CHANNEL = 1460337594339426578
-AUDIT_LOG_CHANNEL       = None
+AUDIT_LOG_CHANNEL       = 1484284952253038712
  
 # File paths
 DATA_DIR            = "/data"
@@ -66,7 +66,7 @@ for _path, _data in seed_files.items():
 # ─────────────────────────────────────────────────────────────────────────────
  
 # Premium Server ID
-PREMIUM_SERVERS = {}
+PREMIUM_SERVERS = {1455476030931210343}
  
  
 # ╔══════════════════════════════════════════════════════════════════════════════╗
